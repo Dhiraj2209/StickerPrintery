@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="520" viewBox="0 0 700 520" role="img" aria-label="Planner Waves Sticker">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f9f3d3"/>
+      <stop offset="100%" stop-color="#d6ecfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="700" height="520" rx="28" fill="url(#bg3)"/>
+  <path d="M0 340 C120 280 220 390 350 330 C470 280 560 390 700 310 L700 520 L0 520 Z" fill="#8fc9da"/>
+  <text x="60" y="220" font-size="66" font-family="Verdana, sans-serif" fill="#2c4750">Planner Waves</text>
+  <text x="63" y="278" font-size="34" font-family="Verdana, sans-serif" fill="#4b6973">A4 Weekly Planner</text>
+</svg>

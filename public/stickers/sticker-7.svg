@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="520" viewBox="0 0 700 520" role="img" aria-label="Logo Mix Sticker">
+  <rect width="700" height="520" rx="28" fill="#f0f3df"/>
+  <rect x="80" y="75" width="160" height="160" rx="32" fill="#c3d6a9"/>
+  <rect x="280" y="75" width="160" height="160" rx="32" fill="#d8e6c4"/>
+  <rect x="480" y="75" width="140" height="160" rx="32" fill="#b4c690"/>
+  <text x="58" y="310" font-size="66" font-family="Verdana, sans-serif" fill="#3e4e32">Logo Mix</text>
+  <text x="62" y="365" font-size="34" font-family="Verdana, sans-serif" fill="#596e4a">Custom Brand Mix</text>
+</svg>

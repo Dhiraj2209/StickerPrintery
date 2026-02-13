@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="520" viewBox="0 0 700 520" role="img" aria-label="Shape Patch Sticker">
+  <rect width="700" height="520" rx="28" fill="#ebf3ff"/>
+  <g fill="#96b7e8">
+    <polygon points="120,115 170,65 220,115 170,165"/>
+    <polygon points="280,110 340,70 400,110 340,150"/>
+    <polygon points="470,110 530,60 590,110 530,160"/>
+    <circle cx="170" cy="210" r="32"/>
+    <circle cx="340" cy="210" r="32"/>
+    <circle cx="530" cy="210" r="32"/>
+  </g>
+  <text x="58" y="318" font-size="64" font-family="Verdana, sans-serif" fill="#31507c">Shape Patch</text>
+  <text x="62" y="372" font-size="32" font-family="Verdana, sans-serif" fill="#4d6a95">Custom Shape Patch Pack</text>
+</svg>

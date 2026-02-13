@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="520" viewBox="0 0 700 520" role="img" aria-label="Coffee Labels Sticker">
+  <rect width="700" height="520" rx="28" fill="#f5e8dd"/>
+  <circle cx="560" cy="130" r="88" fill="#e3b08f"/>
+  <circle cx="560" cy="130" r="45" fill="#fff5eb"/>
+  <rect x="55" y="60" width="320" height="140" rx="22" fill="#fff7f0"/>
+  <text x="78" y="145" font-size="64" font-family="Verdana, sans-serif" fill="#5f4334">Coffee</text>
+  <text x="58" y="305" font-size="62" font-family="Verdana, sans-serif" fill="#4b3d36">Coffee Labels</text>
+  <text x="62" y="360" font-size="32" font-family="Verdana, sans-serif" fill="#735f52">A4 Cafe Mood Set</text>
+</svg>

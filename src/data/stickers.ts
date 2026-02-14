@@ -2,8 +2,41 @@ import { type StickerProduct } from "../types";
 
 export type HomeSectionId = "best-seller" | "a6" | "a4" | "a3" | "custom";
 
-export const COMPANY_NAME = "Something Stickers";
+export const COMPANY_NAME = "StickerPrintery";
 export const WHATSAPP_NUMBER = "919999999999";
+export const DRIVE_ROOT_FOLDER = "1PfDNRG0tPtLE_tX5JOgQdsg4pApW51TF";
+
+const TYPE_CODE_MAP = {
+  FL: "flowers",
+  GN: "general",
+  QT: "motivation quotes",
+  IS: "islamic",
+  GD: "god",
+} as const;
+
+const CATEGORY_CODE_MAP = {
+  R: "ResinStickers",
+  B: "Branding stickers",
+} as const;
+
+const DRIVE_FILES = [
+  { fileId: "15tfVpaNfkS1SEfWD8gKwvpTWhrZuMR2A", filename: "B-GN-THANKS-A6-118.png" },
+  { fileId: "1WYsPnLIYX405roi4ZwMRU0t2AkQ7lmud", filename: "B-QT-GRIND-A6-032.png" },
+  { fileId: "1fHY5zO1V0BIMNGj_Im0xzZVKKLVNNUev", filename: "R-FL-LILY-A6-014.png" },
+  { fileId: "1O7km0N3GzokwJ1-6B2ThfeKCYDDL3iYK", filename: "R-GD-GANESH-A4-021.png" },
+  { fileId: "1TcSNqtqXAf9EGu7ArytcKRZIenRgwRuQ", filename: "R-IS-SABR-A4-007.png" },
+] as const;
+
+export const STICKER_TYPES = [
+  "all",
+  "flowers",
+  "general",
+  "motivation quotes",
+  "islamic",
+  "god",
+] as const;
+
+export const PARENT_CATEGORIES = ["all", "ResinStickers", "Bikestickers", "Branding stickers"] as const;
 
 export const HOME_SECTIONS: Array<{
   id: HomeSectionId;
@@ -17,69 +50,50 @@ export const HOME_SECTIONS: Array<{
   { id: "custom", label: "Custom Sheets", description: "Unique shape collections" },
 ];
 
-export const STICKERS: StickerProduct[] = [
-  {
-    id: "ST-A6-101",
-    name: "Bloom Notes",
-    sheetName: "A6 Floral Pockets",
-    size: "a6",
-    imageUrl: "/stickers/sticker-1.svg",
-    bestSeller: true,
-  },
-  {
-    id: "ST-A6-102",
-    name: "Mint Icons",
-    sheetName: "A6 Tiny UI Icons",
-    size: "a6",
-    imageUrl: "/stickers/sticker-2.svg",
-    bestSeller: false,
-  },
-  {
-    id: "ST-A4-201",
-    name: "Planner Waves",
-    sheetName: "A4 Weekly Planner",
-    size: "a4",
-    imageUrl: "/stickers/sticker-3.svg",
-    bestSeller: true,
-  },
-  {
-    id: "ST-A4-202",
-    name: "Coffee Labels",
-    sheetName: "A4 Cafe Mood Set",
-    size: "a4",
-    imageUrl: "/stickers/sticker-4.svg",
-    bestSeller: false,
-  },
-  {
-    id: "ST-A3-301",
-    name: "Mega Doodles",
-    sheetName: "A3 Wall Doodle Pack",
-    size: "a3",
-    imageUrl: "/stickers/sticker-5.svg",
-    bestSeller: true,
-  },
-  {
-    id: "ST-A3-302",
-    name: "Festival Burst",
-    sheetName: "A3 Event Burst Sheet",
-    size: "a3",
-    imageUrl: "/stickers/sticker-6.svg",
-    bestSeller: false,
-  },
-  {
-    id: "ST-CUS-401",
-    name: "Logo Mix",
-    sheetName: "Custom Brand Mix",
-    size: "custom",
-    imageUrl: "/stickers/sticker-7.svg",
-    bestSeller: true,
-  },
-  {
-    id: "ST-CUS-402",
-    name: "Shape Patch",
-    sheetName: "Custom Shape Patch Pack",
-    size: "custom",
-    imageUrl: "/stickers/sticker-8.svg",
-    bestSeller: false,
-  },
-];
+export function parseStickerFilename(fileNameWithExt: string) {
+  const base = fileNameWithExt.replace(/\.[^.]+$/, "");
+  const match = base.match(
+    /^(?<category>[A-Z])-(?<type>[A-Z]{2})-(?<shortName>[A-Z0-9]+)-(?<size>A[46])-(?<serial>\d{3})$/,
+  );
+  if (!match?.groups) {
+    return null;
+  }
+
+  const categoryCode = match.groups.category as keyof typeof CATEGORY_CODE_MAP;
+  const typeCode = match.groups.type as keyof typeof TYPE_CODE_MAP;
+  const shortName = match.groups.shortName;
+  const sizeCode = match.groups.size;
+  const serial = Number(match.groups.serial);
+
+  const parentCategory = CATEGORY_CODE_MAP[categoryCode] ?? "Branding stickers";
+  const type = TYPE_CODE_MAP[typeCode] ?? "general";
+  const size = sizeCode.toLowerCase() as StickerProduct["size"];
+  const readableName = shortName.charAt(0) + shortName.slice(1).toLowerCase();
+
+  return {
+    fullCode: base,
+    type,
+    size,
+    serial,
+    parentCategory,
+    displayName: readableName,
+  };
+}
+
+export const STICKERS: StickerProduct[] = DRIVE_FILES.map((file) => {
+  const parsed = parseStickerFilename(file.filename);
+  if (!parsed) {
+    throw new Error(`Invalid filename format: ${file.filename}`);
+  }
+
+  return {
+    id: parsed.fullCode,
+    name: parsed.displayName,
+    sheetName: parsed.fullCode,
+    size: parsed.size,
+    type: parsed.type,
+    parentCategory: parsed.parentCategory,
+    imageUrl: `https://drive.google.com/thumbnail?id=${file.fileId}&sz=w1200`,
+    bestSeller: parsed.serial <= 35,
+  };
+});

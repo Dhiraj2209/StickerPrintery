@@ -23,9 +23,9 @@ async function toPngDataUrl(imageUrl: string): Promise<string> {
   return canvas.toDataURL("image/png");
 }
 
-function addWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidth: number) {
-  const lines = doc.splitTextToSize(text, maxWidth);
-  doc.text(lines, x, y);
+function fitText(doc: jsPDF, value: string, x: number, y: number, width: number) {
+  const lines = doc.splitTextToSize(value, width - 4);
+  doc.text(lines[0] ?? "", x, y);
 }
 
 type BuildOrderPdfParams = {
@@ -35,96 +35,126 @@ type BuildOrderPdfParams = {
 
 export async function generateOrderPdf({ customer, cartItems }: BuildOrderPdfParams) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const now = new Date();
   const timestamp = now.toLocaleString();
   const totalQty = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const marginX = 28;
+  let y = 40;
 
-  let y = 44;
-  doc.setFontSize(18);
-  doc.text("Sticker Order Summary", 40, y);
-  y += 22;
+  doc.setFontSize(17);
+  doc.text("StickerPrintery - Invoice", marginX, y);
   doc.setFontSize(10);
-  doc.text(`Generated: ${timestamp}`, 40, y);
   y += 18;
-  doc.text(`Customer Name: ${customer.name}`, 40, y);
-  y += 15;
-  doc.text(`Contact Number: ${customer.contactNumber}`, 40, y);
-  y += 15;
-  addWrappedText(
-    doc,
-    `Address: ${customer.streetAddress}, Pincode - ${customer.pincode}`,
-    40,
-    y,
-    520,
-  );
-  y += 30;
+  doc.text(`Date Time: ${timestamp}`, marginX, y);
+  y += 14;
+  doc.text(`Customer: ${customer.name}`, marginX, y);
+  y += 14;
+  doc.text(`Contact: ${customer.contactNumber}`, marginX, y);
+  y += 14;
+  doc.text(`Address: ${customer.streetAddress}, ${customer.pincode}`, marginX, y);
+  y += 18;
 
-  doc.setDrawColor(190, 210, 203);
-  doc.line(40, y, 555, y);
-  y += 16;
+  const columns = [
+    { title: "#", width: 24 },
+    { title: "Image", width: 50 },
+    { title: "Sheet ID", width: 82 },
+    { title: "Name", width: 170 },
+    { title: "Size", width: 46 },
+    { title: "Qty", width: 46 },
+  ];
 
-  doc.setFontSize(11);
-  for (const { product, quantity } of cartItems) {
-    if (y > 730) {
+  const drawTableHeader = () => {
+    let x = marginX;
+    doc.setFillColor(236, 245, 242);
+    doc.rect(marginX, y, pageWidth - marginX * 2, 22, "F");
+    doc.setFontSize(9);
+    for (const column of columns) {
+      doc.rect(x, y, column.width, 22);
+      doc.text(column.title, x + 3, y + 14);
+      x += column.width;
+    }
+    y += 22;
+  };
+
+  drawTableHeader();
+
+  let rowIndex = 1;
+  for (const item of cartItems) {
+    const rowHeight = 56;
+    if (y + rowHeight > pageHeight - 230) {
       doc.addPage();
-      y = 46;
+      y = 30;
+      drawTableHeader();
     }
 
-    const imageData = await toPngDataUrl(product.imageUrl);
-    doc.addImage(imageData, "PNG", 40, y, 56, 56);
+    const imageData = await toPngDataUrl(item.product.imageUrl);
+    let x = marginX;
+    for (const column of columns) {
+      doc.rect(x, y, column.width, rowHeight);
+      x += column.width;
+    }
 
-    doc.text(`Sticker Name: ${product.name}`, 106, y + 14);
-    doc.text(`Sheet Name: ${product.sheetName}`, 106, y + 28);
-    doc.text(`Sticker Sheet ID: ${product.id}`, 106, y + 42);
-    doc.text(`Size: ${product.size.toUpperCase()} | Quantity: ${quantity}`, 106, y + 56);
-    y += 72;
+    x = marginX;
+    doc.setFontSize(9);
+    doc.text(String(rowIndex), x + 7, y + 16);
+    x += columns[0].width;
+    doc.addImage(imageData, "PNG", x + 4, y + 4, 42, 42);
+    x += columns[1].width;
+    fitText(doc, item.product.id, x + 2, y + 16, columns[2].width);
+    x += columns[2].width;
+    fitText(doc, item.product.sheetName, x + 2, y + 16, columns[3].width);
+    x += columns[3].width;
+    doc.text(item.product.size.toUpperCase(), x + 4, y + 16);
+    x += columns[4].width;
+    doc.text(String(item.quantity), x + 14, y + 16);
+
+    y += rowHeight;
+    rowIndex += 1;
   }
 
-  if (y > 665) {
+  doc.setFontSize(10);
+  doc.text(`Total Quantity: ${totalQty}`, marginX, y + 16);
+  y += 34;
+
+  if (y + 190 > pageHeight - 24) {
     doc.addPage();
-    y = 46;
+    y = 32;
+  }
+
+  const boxGap = 14;
+  const boxWidth = (pageWidth - marginX * 2 - boxGap) / 2;
+  const boxHeight = 170;
+  doc.setDrawColor(195, 210, 204);
+  doc.rect(marginX, y, boxWidth, boxHeight);
+  doc.rect(marginX + boxWidth + boxGap, y, boxWidth, boxHeight);
+
+  doc.setFontSize(12);
+  doc.text("Terms & Conditions", marginX + 8, y + 18);
+  doc.setFontSize(9);
+  const terms = [
+    "1. Order confirmed after payment proof.",
+    "2. Share payment screenshot on WhatsApp.",
+    "3. Sticker shades may vary slightly.",
+    "4. Custom sheets can take extra time.",
+    "5. This is a no-backend direct order flow.",
+  ];
+  let termsY = y + 34;
+  for (const line of terms) {
+    doc.text(line, marginX + 8, termsY);
+    termsY += 14;
   }
 
   doc.setFontSize(12);
-  doc.text(`Total Quantity: ${totalQty}`, 40, y + 10);
-
-  doc.addPage();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  doc.setFontSize(16);
-  doc.text("Payment and Terms", 40, 48);
-  doc.setFontSize(11);
-  doc.text("Please pay on this to confirm your order.", 40, 70);
-
-  const leftX = 40;
-  const topY = 92;
-  const colWidth = 250;
-  const sectionHeight = pageHeight - 160;
-
-  doc.setDrawColor(198, 210, 206);
-  doc.rect(leftX, topY, colWidth, sectionHeight);
-  doc.rect(leftX + colWidth + 15, topY, colWidth, sectionHeight);
-
-  doc.setFontSize(12);
-  doc.text("Terms & Conditions", leftX + 10, topY + 20);
-  doc.setFontSize(10);
-  addWrappedText(
-    doc,
-    "1. Order is confirmed after payment verification.\n2. Please share the payment proof on WhatsApp.\n3. Sticker color may vary slightly on print.\n4. Custom requests may need extra processing time.\n5. No backend payment gateway is active yet.",
-    leftX + 10,
-    topY + 40,
-    colWidth - 20,
-  );
-
+  doc.text("Payment QR", marginX + boxWidth + boxGap + 8, y + 18);
+  doc.setFontSize(9);
+  doc.text("Please pay on this to confirm your order", marginX + boxWidth + boxGap + 8, y + 34);
   const qrData = await toPngDataUrl(PAYMENT_QR_IMAGE);
-  const qrX = leftX + colWidth + 65;
-  const qrY = topY + 70;
-  doc.addImage(qrData, "PNG", qrX, qrY, 150, 150);
-  doc.setFontSize(10);
-  doc.text("Scan QR to Pay", qrX + 36, qrY + 170);
+  doc.addImage(qrData, "PNG", marginX + boxWidth + boxGap + 45, y + 44, 118, 118);
 
   const blob = doc.output("blob");
   const fileName = `sticker-order-${now.getTime()}.pdf`;
-  const summaryText = `Order from ${customer.name}. Total stickers: ${totalQty}. Contact: ${customer.contactNumber}.`;
-
+  const summaryText = `Invoice from StickerPrintery for ${customer.name}. Total quantity: ${totalQty}.`;
   return { blob, fileName, summaryText };
 }

@@ -24,6 +24,8 @@ type ViewState =
   | { page: "listing"; sectionId: HomeSectionId }
   | { page: "cart" };
 
+type SortOption = "default" | "alphabetical" | "size-asc" | "size-desc";
+
 function QuantityControl({
   quantity,
   onChange,
@@ -57,7 +59,7 @@ function App() {
   const [view, setView] = useState<ViewState>({ page: "home" });
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"default" | "alphabetical">("default");
+  const [sortBy, setSortBy] = useState<SortOption>("default");
   const [selectedType, setSelectedType] = useState<(typeof STICKER_TYPES)[number]>("all");
   const [selectedParent, setSelectedParent] = useState<(typeof PARENT_CATEGORIES)[number]>("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -133,10 +135,26 @@ function App() {
       return item.parentCategory === (selectedParent as ParentCategory);
     });
 
+    const sizeRank: Record<StickerProduct["size"], number> = {
+      a6: 1,
+      a4: 2,
+      a3: 3,
+      custom: 4,
+    };
+
+    if (currentSection.id === "best-seller") {
+      if (sortBy === "alphabetical") {
+        return [...parentFiltered].sort((a, b) => a.name.localeCompare(b.name));
+      }
+      if (sortBy === "size-desc") {
+        return [...parentFiltered].sort((a, b) => sizeRank[b.size] - sizeRank[a.size]);
+      }
+      return [...parentFiltered].sort((a, b) => sizeRank[a.size] - sizeRank[b.size]);
+    }
+
     if (sortBy === "alphabetical") {
       return [...parentFiltered].sort((a, b) => a.name.localeCompare(b.name));
     }
-
     return parentFiltered;
   }, [currentSection, searchTerm, selectedParent, selectedType, sortBy]);
 
@@ -227,6 +245,8 @@ function App() {
   };
 
   const showSearch = view.page === "listing";
+  const stickerAspectRatio = (size: StickerProduct["size"]) =>
+    size === "a3" ? "11.5 / 16.5" : "4.1 / 5.7";
   const handleImageFallback = (event: SyntheticEvent<HTMLImageElement>) => {
     const image = event.currentTarget;
     const current = image.src;
@@ -309,10 +329,18 @@ function App() {
                   <select
                     id="sortBy"
                     value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value as "default" | "alphabetical")}
+                    onChange={(event) => setSortBy(event.target.value as SortOption)}
                   >
-                    <option value="default">Default</option>
+                    <option value="default">
+                      {currentSection.id === "best-seller" ? "Default (A6, A4, A3)" : "Default"}
+                    </option>
                     <option value="alphabetical">Alphabetical</option>
+                    {currentSection.id === "best-seller" ? (
+                      <>
+                        <option value="size-asc">Sheet Size (A6, A4, A3)</option>
+                        <option value="size-desc">Sheet Size Reverse (A3, A4, A6)</option>
+                      </>
+                    ) : null}
                   </select>
                 </div>
                 <button
@@ -379,6 +407,7 @@ function App() {
                         alt={product.name}
                         loading="lazy"
                         onError={handleImageFallback}
+                        style={{ aspectRatio: stickerAspectRatio(product.size) }}
                       />
                     </button>
                     <h3>{product.name}</h3>
@@ -418,7 +447,12 @@ function App() {
               {cartItems.length === 0 ? <p className="empty-state">No sticker sheet selected yet.</p> : null}
               {cartItems.map(({ product, quantity }) => (
                 <article className="cart-item" key={product.id}>
-                  <img src={product.imageUrl} alt={product.name} onError={handleImageFallback} />
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    onError={handleImageFallback}
+                    style={{ aspectRatio: stickerAspectRatio(product.size) }}
+                  />
                   <div>
                     <h3>{product.name}</h3>
                     <p>Sheet Name: {product.sheetName}</p>
@@ -464,7 +498,12 @@ function App() {
             <button type="button" className="close-modal" onClick={() => setActiveSticker(null)}>
               Close
             </button>
-            <img src={activeSticker.imageUrl} alt={activeSticker.name} onError={handleImageFallback} />
+            <img
+              src={activeSticker.imageUrl}
+              alt={activeSticker.name}
+              onError={handleImageFallback}
+              style={{ aspectRatio: stickerAspectRatio(activeSticker.size) }}
+            />
             <h3>{activeSticker.name}</h3>
             <p>
               {activeSticker.sheetName} | Size: {activeSticker.size.toUpperCase()}

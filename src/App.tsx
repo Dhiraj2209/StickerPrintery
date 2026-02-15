@@ -1,68 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type FormEvent, type SyntheticEvent } from "react";
+import { type FormEvent } from "react";
 import "./App.css";
-import {
-  COMPANY_NAME,
-  HOME_SECTIONS,
-  PARENT_CATEGORIES,
-  STICKERS,
-  STICKER_TYPES,
-  WHATSAPP_NUMBER,
-  type HomeSectionId,
-} from "./data/stickers";
-import {
-  type CartItem,
-  type CustomerDetails,
-  type ParentCategory,
-  type StickerProduct,
-  type StickerType,
-} from "./types";
+import { WHATSAPP_NUMBER, type HomeSectionId } from "./data/stickers";
+import { type CartItem, type CustomerDetails, type StickerProduct } from "./types";
 import { generateOrderPdf } from "./utils/pdf";
+import { Header } from "./components/Header";
+import { HomeView } from "./views/HomeView";
+import { ListingView } from "./views/ListingView";
+import { CartView } from "./views/CartView";
+import { OrderModal } from "./components/OrderModal";
+import { StickerModal } from "./components/StickerModal";
 
 type ViewState =
   | { page: "home" }
   | { page: "listing"; sectionId: HomeSectionId }
   | { page: "cart" };
 
-type SortOption = "default" | "alphabetical" | "size-asc" | "size-desc";
-
-function QuantityControl({
-  quantity,
-  onChange,
-}: {
-  quantity: number;
-  onChange: (next: number) => void;
-}) {
-  return (
-    <div className="qty-control">
-      <button type="button" onClick={() => onChange(quantity - 1)}>
-        -
-      </button>
-      <input
-        aria-label="Quantity"
-        value={quantity}
-        inputMode="numeric"
-        onChange={(event) => {
-          const raw = event.target.value.replace(/[^\d]/g, "");
-          const parsed = raw ? Number(raw) : 0;
-          onChange(parsed);
-        }}
-      />
-      <button type="button" onClick={() => onChange(quantity + 1)}>
-        +
-      </button>
-    </div>
-  );
-}
-
 function App() {
   const [view, setView] = useState<ViewState>({ page: "home" });
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<SortOption>("default");
-  const [selectedType, setSelectedType] = useState<(typeof STICKER_TYPES)[number]>("all");
-  const [selectedParent, setSelectedParent] = useState<(typeof PARENT_CATEGORIES)[number]>("all");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [activeSticker, setActiveSticker] = useState<StickerProduct | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
@@ -72,7 +29,7 @@ function App() {
   const cartItems = useMemo(() => Object.values(cart), [cart]);
   const cartCount = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
-    [cartItems],
+    [cartItems]
   );
 
   useEffect(() => {
@@ -99,64 +56,6 @@ function App() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
-
-  const currentSection =
-    view.page === "listing"
-      ? HOME_SECTIONS.find((section) => section.id === view.sectionId) ?? null
-      : null;
-
-  const listingProducts = useMemo(() => {
-    if (!currentSection) {
-      return [];
-    }
-
-    const source = STICKERS.filter((sticker) => {
-      if (currentSection.id === "best-seller") {
-        return sticker.bestSeller;
-      }
-      return sticker.size.toLowerCase() === currentSection.id;
-    });
-
-    const searched = source.filter((item) =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase().trim()),
-    );
-
-    const typed = searched.filter((item) => {
-      if (selectedType === "all") {
-        return true;
-      }
-      return item.type === (selectedType as StickerType);
-    });
-
-    const parentFiltered = typed.filter((item) => {
-      if (selectedParent === "all") {
-        return true;
-      }
-      return item.parentCategory === (selectedParent as ParentCategory);
-    });
-
-    const sizeRank: Record<StickerProduct["size"], number> = {
-      a6: 1,
-      a4: 2,
-      a3: 3,
-      custom: 4,
-    };
-
-    if (currentSection.id === "best-seller") {
-      if (sortBy === "alphabetical") {
-        return [...parentFiltered].sort((a, b) => a.name.localeCompare(b.name));
-      }
-      if (sortBy === "size-desc") {
-        return [...parentFiltered].sort((a, b) => sizeRank[b.size] - sizeRank[a.size]);
-      }
-      return [...parentFiltered].sort((a, b) => sizeRank[a.size] - sizeRank[b.size]);
-    }
-
-    if (sortBy === "alphabetical") {
-      return [...parentFiltered].sort((a, b) => a.name.localeCompare(b.name));
-    }
-    return parentFiltered;
-  }, [currentSection, searchTerm, selectedParent, selectedType, sortBy]);
 
   const updateQuantity = (product: StickerProduct, quantity: number) => {
     setCart((prev) => {
@@ -196,10 +95,18 @@ function App() {
       pincode: String(formData.get("pincode") ?? "").trim(),
     };
 
-    if (!customer.name || !customer.contactNumber || !customer.streetAddress || !customer.pincode) {
+    if (
+      !customer.name ||
+      !customer.contactNumber ||
+      !customer.streetAddress ||
+      !customer.pincode
+    ) {
       return;
     }
-    if (!/^\d{10}$/.test(customer.contactNumber) || !/^\d{6}$/.test(customer.pincode)) {
+    if (
+      !/^\d{10}$/.test(customer.contactNumber) ||
+      !/^\d{6}$/.test(customer.pincode)
+    ) {
       return;
     }
 
@@ -228,7 +135,7 @@ function App() {
         await navigator.share(sharePayload);
       } else {
         const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-          `${summaryText}\n\nPDF downloaded. Please attach and send it.`,
+          `${summaryText}\n\nPDF downloaded. Please attach and send it.`
         )}`;
         window.open(whatsappUrl, "_blank", "noopener,noreferrer");
       }
@@ -245,336 +152,61 @@ function App() {
   };
 
   const showSearch = view.page === "listing";
-  const stickerAspectRatio = (size: StickerProduct["size"]) =>
-    size === "a3" ? "11.5 / 16.5" : "4.1 / 5.7";
-  const handleImageFallback = (event: SyntheticEvent<HTMLImageElement>) => {
-    const image = event.currentTarget;
-    const current = image.src;
-    if (current.includes("uc?export=view")) {
-      return;
-    }
-    const idMatch = current.match(/[?&]id=([^&]+)/);
-    if (!idMatch?.[1]) {
-      return;
-    }
-    image.src = `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
-  };
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <div className="brand-block">
-          <p className="brand-label">Premium Sticker Sheets</p>
-          <h1>{COMPANY_NAME}</h1>
-        </div>
-
-        <div className="header-actions">
-          {showSearch ? (
-            <input
-              type="search"
-              className="search-input"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search sticker sheets..."
-              aria-label="Search stickers by name"
-            />
-          ) : (
-            <div className="search-input placeholder-hidden" />
-          )}
-
-          <button className="cart-button" onClick={() => navigateTo({ page: "cart" })} type="button">
-            Cart View
-            <span>{cartCount}</span>
-          </button>
-        </div>
-      </header>
+      <Header
+        showSearch={showSearch}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        cartCount={cartCount}
+        onCartClick={() => navigateTo({ page: "cart" })}
+      />
 
       <main className="page-content">
         {view.page === "home" ? (
-          <section className="home-grid">
-            <h2>Choose Sticker Sheets</h2>
-            <p>Pick by bestseller picks or sheet size.</p>
-            <div className="section-cards">
-              {HOME_SECTIONS.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  className="section-card"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setSortBy("default");
-                    setSelectedType("all");
-                    setSelectedParent("all");
-                    setIsFilterOpen(false);
-                    navigateTo({ page: "listing", sectionId: section.id });
-                  }}
-                >
-                  <strong>{section.label}</strong>
-                  <span>{section.description}</span>
-                </button>
-              ))}
-            </div>
-          </section>
+          <HomeView
+            onNavigate={(sectionId) => navigateTo({ page: "listing", sectionId })}
+          />
         ) : null}
 
-        {view.page === "listing" && currentSection ? (
-          <section className="listing-page">
-            <div className="listing-controls">
-              <button className="back-link" type="button" onClick={goBack}>
-                Back
-              </button>
-              <div className="controls-right">
-                <div className="sort-group">
-                  <label htmlFor="sortBy">Sort</label>
-                  <select
-                    id="sortBy"
-                    value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value as SortOption)}
-                  >
-                    <option value="default">
-                      {currentSection.id === "best-seller" ? "Default (A6, A4, A3)" : "Default"}
-                    </option>
-                    <option value="alphabetical">Alphabetical</option>
-                    {currentSection.id === "best-seller" ? (
-                      <>
-                        <option value="size-asc">Sheet Size (A6, A4, A3)</option>
-                        <option value="size-desc">Sheet Size Reverse (A3, A4, A6)</option>
-                      </>
-                    ) : null}
-                  </select>
-                </div>
-                <button
-                  type="button"
-                  className="back-link"
-                  onClick={() => setIsFilterOpen((prev) => !prev)}
-                >
-                  Filter
-                </button>
-              </div>
-            </div>
-
-            {isFilterOpen ? (
-              <div className="filter-panel">
-                <div className="sort-group">
-                  <label htmlFor="typeFilter">Type</label>
-                  <select
-                    id="typeFilter"
-                    value={selectedType}
-                    onChange={(event) =>
-                      setSelectedType(event.target.value as (typeof STICKER_TYPES)[number])
-                    }
-                  >
-                    {STICKER_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="sort-group">
-                  <label htmlFor="parentFilter">Parent</label>
-                  <select
-                    id="parentFilter"
-                    value={selectedParent}
-                    onChange={(event) =>
-                      setSelectedParent(event.target.value as (typeof PARENT_CATEGORIES)[number])
-                    }
-                  >
-                    {PARENT_CATEGORIES.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            ) : null}
-
-            <h2>{currentSection.label}</h2>
-            <div className="sticker-grid">
-              {listingProducts.map((product) => {
-                const currentQty = cart[product.id]?.quantity ?? 0;
-                return (
-                  <article className="sticker-card" key={product.id}>
-                    <button
-                      className="image-button"
-                      type="button"
-                      onClick={() => setActiveSticker(product)}
-                      aria-label={`View ${product.name}`}
-                    >
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        loading="lazy"
-                        onError={handleImageFallback}
-                        style={{ aspectRatio: stickerAspectRatio(product.size) }}
-                      />
-                    </button>
-                    <h3>{product.name}</h3>
-                    <p>
-                      Sheet: {product.sheetName} | Size: {product.size.toUpperCase()}
-                    </p>
-                    <p>
-                      Type: {product.type} | Parent: {product.parentCategory}
-                    </p>
-                    {currentQty === 0 ? (
-                      <button className="action-button" type="button" onClick={() => updateQuantity(product, 1)}>
-                        Add
-                      </button>
-                    ) : (
-                      <QuantityControl
-                        quantity={currentQty}
-                        onChange={(next) => updateQuantity(product, next)}
-                      />
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          </section>
+        {view.page === "listing" ? (
+          <ListingView
+            sectionId={view.sectionId}
+            searchTerm={searchTerm}
+            cart={cart}
+            onUpdateQuantity={updateQuantity}
+            onSetActiveSticker={setActiveSticker}
+            onBack={goBack}
+          />
         ) : null}
 
         {view.page === "cart" ? (
-          <section className="cart-page">
-            <div className="cart-head-row">
-              <button className="back-link" type="button" onClick={goBack}>
-                Back
-              </button>
-              <h2>Cart Summary</h2>
-            </div>
-
-            <div className="cart-scroll-area">
-              {cartItems.length === 0 ? <p className="empty-state">No sticker sheet selected yet.</p> : null}
-              {cartItems.map(({ product, quantity }) => (
-                <article className="cart-item" key={product.id}>
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    onError={handleImageFallback}
-                    style={{ aspectRatio: stickerAspectRatio(product.size) }}
-                  />
-                  <div>
-                    <h3>{product.name}</h3>
-                    <p>Sheet Name: {product.sheetName}</p>
-                    <p>Sticker Sheet ID: {product.id}</p>
-                    <p>Size: {product.size.toUpperCase()}</p>
-                    <p>Type: {product.type}</p>
-                    <p>Parent: {product.parentCategory}</p>
-                    <QuantityControl
-                      quantity={quantity}
-                      onChange={(next) => updateQuantity(product, next)}
-                    />
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <div className="cart-fixed-footer">
-              <p>
-                Total Quantity: <strong>{cartCount}</strong>
-              </p>
-              <button
-                type="button"
-                className="order-now-btn"
-                onClick={() => setIsOrderModalOpen(true)}
-                disabled={cartItems.length === 0}
-              >
-                Order Now
-              </button>
-            </div>
-          </section>
+          <CartView
+            cartItems={cartItems}
+            cartCount={cartCount}
+            onUpdateQuantity={updateQuantity}
+            onBack={goBack}
+            onOrderNow={() => setIsOrderModalOpen(true)}
+          />
         ) : null}
       </main>
 
       {activeSticker ? (
-        <div
-          className="modal-layer"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Sticker preview"
-          onClick={() => setActiveSticker(null)}
-        >
-          <div className="preview-modal" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className="close-modal" onClick={() => setActiveSticker(null)}>
-              Close
-            </button>
-            <img
-              src={activeSticker.imageUrl}
-              alt={activeSticker.name}
-              onError={handleImageFallback}
-              style={{ aspectRatio: stickerAspectRatio(activeSticker.size) }}
-            />
-            <h3>{activeSticker.name}</h3>
-            <p>
-              {activeSticker.sheetName} | Size: {activeSticker.size.toUpperCase()}
-            </p>
-            <p>
-              Type: {activeSticker.type} | Parent: {activeSticker.parentCategory}
-            </p>
-            {(cart[activeSticker.id]?.quantity ?? 0) === 0 ? (
-              <button className="action-button" type="button" onClick={() => updateQuantity(activeSticker, 1)}>
-                Add
-              </button>
-            ) : (
-              <QuantityControl
-                quantity={cart[activeSticker.id]?.quantity ?? 1}
-                onChange={(next) => updateQuantity(activeSticker, next)}
-              />
-            )}
-          </div>
-        </div>
+        <StickerModal
+          product={activeSticker}
+          quantity={cart[activeSticker.id]?.quantity ?? 0}
+          onClose={() => setActiveSticker(null)}
+          onUpdateQuantity={updateQuantity}
+        />
       ) : null}
 
       {isOrderModalOpen ? (
-        <div
-          className="modal-layer"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Order details form"
-          onClick={() => setIsOrderModalOpen(false)}
-        >
-          <form className="order-modal" onSubmit={handleSubmitOrder} onClick={(event) => event.stopPropagation()}>
-            <h3>Customer Details</h3>
-            <label htmlFor="name">Customer Name</label>
-            <input id="name" name="name" required />
-
-            <label htmlFor="contactNumber">Contact Number</label>
-            <input
-              id="contactNumber"
-              name="contactNumber"
-              required
-              inputMode="numeric"
-              pattern="\d{10}"
-              maxLength={10}
-              minLength={10}
-              title="Contact number must be exactly 10 digits"
-            />
-
-            <label htmlFor="streetAddress">Street Address</label>
-            <input id="streetAddress" name="streetAddress" required />
-
-            <label htmlFor="pincode">Pincode</label>
-            <input
-              id="pincode"
-              name="pincode"
-              required
-              inputMode="numeric"
-              pattern="\d{6}"
-              maxLength={6}
-              minLength={6}
-              title="Pincode must be exactly 6 digits"
-            />
-
-            <div className="modal-buttons">
-              <button type="button" onClick={() => setIsOrderModalOpen(false)}>
-                Cancel
-              </button>
-              <button type="submit" disabled={isSubmittingOrder}>
-                {isSubmittingOrder ? "Creating PDF..." : "Confirm"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <OrderModal
+          isSubmitting={isSubmittingOrder}
+          onClose={() => setIsOrderModalOpen(false)}
+          onSubmit={handleSubmitOrder}
+        />
       ) : null}
     </div>
   );

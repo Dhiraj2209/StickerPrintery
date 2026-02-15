@@ -3,24 +3,57 @@ import { type CartItem, type CustomerDetails } from "../types";
 
 const PAYMENT_QR_IMAGE = "/payment-qr.svg";
 
+/**
+ * Loads an image from a URL and converts it to a PNG data URL.
+ * If loading fails, tries to detect if it's a Google Drive link and retries with the direct view URL.
+ * If all attempts fail, returns a fallback 1x1 transparent pixel.
+ */
 async function toPngDataUrl(imageUrl: string): Promise<string> {
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = imageUrl;
-  });
+  const loadImage = (url: string) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+      img.src = url;
+    });
 
-  const canvas = document.createElement("canvas");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Canvas context unavailable");
+  const transparentPixel =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+  try {
+    // Try original URL
+    const image = await loadImage(imageUrl);
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas context unavailable");
+    context.drawImage(image, 0, 0);
+    return canvas.toDataURL("image/png");
+  } catch (originalError) {
+    // Check if it's a Google Drive URL that needs fixing
+    const idMatch = imageUrl.match(/[?&]id=([^&]+)/);
+    if (!imageUrl.includes("uc?export=view") && idMatch?.[1]) {
+      try {
+        const fallbackUrl = `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
+        const image = await loadImage(fallbackUrl);
+        const canvas = document.createElement("canvas");
+        canvas.width = image.width;
+        canvas.height = image.height;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Canvas context unavailable");
+        context.drawImage(image, 0, 0);
+        return canvas.toDataURL("image/png");
+      } catch (fallbackError) {
+        console.error("Image load failed (fallback):", fallbackError);
+        return transparentPixel;
+      }
+    }
+
+    console.error("Image load failed (original):", originalError);
+    return transparentPixel;
   }
-  context.drawImage(image, 0, 0);
-  return canvas.toDataURL("image/png");
 }
 
 function fitText(doc: jsPDF, value: string, x: number, y: number, width: number) {
@@ -100,7 +133,12 @@ export async function generateOrderPdf({ customer, cartItems }: BuildOrderPdfPar
     doc.setFontSize(9);
     doc.text(String(rowIndex), x + 7, y + 16);
     x += columns[0].width;
-    doc.addImage(imageData, "PNG", x + 4, y + 4, 42, 42);
+
+    // Only add image if we have valid data (simple check against the empty base64 is not strictly needed as it draws nothing/transparent, but good to be robust)
+    if (imageData) {
+      doc.addImage(imageData, "PNG", x + 4, y + 4, 42, 42);
+    }
+
     x += columns[1].width;
     fitText(doc, item.product.id, x + 2, y + 16, columns[2].width);
     x += columns[2].width;
@@ -138,7 +176,6 @@ export async function generateOrderPdf({ customer, cartItems }: BuildOrderPdfPar
     "2. Share payment screenshot on WhatsApp.",
     "3. Sticker shades may vary slightly.",
     "4. Custom sheets can take extra time.",
-    "5. This is a no-backend direct order flow.",
   ];
   let termsY = y + 34;
   for (const line of terms) {
@@ -150,8 +187,11 @@ export async function generateOrderPdf({ customer, cartItems }: BuildOrderPdfPar
   doc.text("Payment QR", marginX + boxWidth + boxGap + 8, y + 18);
   doc.setFontSize(9);
   doc.text("Please pay on this to confirm your order", marginX + boxWidth + boxGap + 8, y + 34);
+
   const qrData = await toPngDataUrl(PAYMENT_QR_IMAGE);
-  doc.addImage(qrData, "PNG", marginX + boxWidth + boxGap + 45, y + 44, 118, 118);
+  if (qrData) {
+    doc.addImage(qrData, "PNG", marginX + boxWidth + boxGap + 45, y + 44, 118, 118);
+  }
 
   const blob = doc.output("blob");
   const fileName = `sticker-order-${now.getTime()}.pdf`;
